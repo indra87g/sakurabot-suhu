@@ -1,15 +1,37 @@
 {
-  "name": "app1",
-  "version": "0.1.0",
-  "description": "Telegram Bot",
-  "main": "index.js",
-  "scripts": {
-    "prestart": "npm install",
-    "start": "node index.js"
-  },
-  "dependencies": {
-    "axios": "^1.6.0",
-    "node-fetch": "^3.3.2",
-    "node-telegram-bot-api": "^0.66.0"
-  }
+   "name": "app1",
+   "version": "0.1.0",
+   "description": "WhatsApp Bot",
+   "main": "index.js",
+   "type": "module",
+   "engines": {
+      "node": ">= 20.x"
+   },
+   "scripts": {
+      "prestart": "npm install",
+      "start": "node --no-warnings ./index.js"
+   },
+   "author": "Indra Sah Noeldy",
+   "license": "ISC",
+   "dependencies": {
+      "@adiwajshing/keyed-db": "^0.2.4",
+      "@neoxr/wb": "^6.0.0-rc.27",
+      "audio-decode": "^2.1.3",
+      "baileys": "github:neoxrbot/baileys",
+      "cfonts": "3.3.1",
+      "html-entities": "^2.5.2",
+      "node-gtts": "^2.0.2",
+      "sharp": "0.34.5",
+      "translate-google-api": "1.0.4"
+   },
+   "devDependencies": {
+      "css-select": "6.0.0"
+   },
+   "overrides": {
+      "jimp": "~0.22.12"
+   },
+   "resolutions": {
+      "jimp": "~0.22.12"
+   }
 }
+
