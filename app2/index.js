@@ -3,18 +3,7 @@ const path = require("path");
 const axios = require("axios");
 const fetch = (...args) => import("node-fetch").then(({ default: f }) => f(...args));
 const TelegramBot = require("node-telegram-bot-api");
-const JavaScriptObfuscator = require("javascript-obfuscator");
 const { exec } = require("child_process");
-
-/*const {
-  TOKEN,
-  CHANNEL_ID,
-  OWNER_ID,
-  OWNER_LINK,
-  DEV_LINK,
-  INFO_OWNER_LINK,
-  PREMIUM_JOIN_LINK
-} = require("./config");*/
 
 // === Init Bot ===
 const bot = new TelegramBot(process.env.TOKEN, { polling: true });
