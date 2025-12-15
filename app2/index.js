@@ -1,8 +1,3 @@
-/**
- * Bot Premium + Broadcast All Group
- * by you — fixed & polished
- */
-
 const fs = require("fs");
 const path = require("path");
 const axios = require("axios");
@@ -167,7 +162,7 @@ bot.onText(/\/share(?:@[\w_]+)?$/, async (msg) => {
   if (!premium) return sendJoinButton(chatId);
 
   if (!msg.reply_to_message) {
-    return bot.sendMessage(chatId, "🥹 REPLY PESAN YANG MAU DI /share");
+    return bot.sendMessage(chatId, "👉 REPLY PESAN YANG MAU DI /share");
   }
 
   const target = msg.reply_to_message;
@@ -201,9 +196,9 @@ bot.on("callback_query", async (callbackQuery) => {
     const premium = await isUserPremium(userId);
     if (premium) {
       await bot.answerCallbackQuery(callbackQuery.id, { text: "✅ Premium aktif!" });
-      await bot.sendMessage(chatId, "♥️🗿 BERHASIL MENDAPATKAN PREMIUM ♥️🥹");
+      await bot.sendMessage(chatId, "♥️ BERHASIL MENDAPATKAN PREMIUM ♥️");
     } else {
-      await bot.answerCallbackQuery(callbackQuery.id, { text: "❌ Belum join channel 🥹" });
+      await bot.answerCallbackQuery(callbackQuery.id, { text: "❌ Belum join channel" });
     }
   }
 });
@@ -215,13 +210,13 @@ bot.onText(/\/chatowner (.+)/, async (msg, match) => {
   const pesan = (match[1] || "").trim();
 
   if (!pesan) {
-    return bot.sendMessage(chatId, "❌ CONTOH /chatowner bokep 🗿");
+    return bot.sendMessage(chatId, "❌ CONTOH /chatowner hello");
   }
 
   try {
     await bot.sendMessage(
       OWNER_ID,
-      `😎 *MESEJ NEW LHO*\n\n` +
+      `😎 *ADA PESAN BARU*\n\n` +
       `😂 NAME : ${fromUser.first_name} ${fromUser.last_name || ""}\n` +
       `⚕️ USER : @${fromUser.username || "-"}\n` +
       `🌒 ID : ${fromUser.id}\n\n` +
@@ -231,57 +226,7 @@ bot.onText(/\/chatowner (.+)/, async (msg, match) => {
     await bot.sendMessage(chatId, "✅ SUKSES kirim pesan ke owner");
   } catch (err) {
     console.error("ERROR KIRIM PESAN KE OWNER:", err.message);
-    await bot.sendMessage(chatId, "🔥🥹 KO BISA ERROR");
-  }
-});
-
-// === /enchtml (reply file .html) ===
-bot.onText(/\/enchtml(?:@[\w_]+)?$/, async (msg) => {
-  const chatId = msg.chat.id;
-  const userId = msg.from?.id;
-
-  const premium = await isUserPremium(userId);
-  if (!premium) return sendJoinButton(chatId);
-
-  if (!msg.reply_to_message || !msg.reply_to_message.document) {
-    return bot.sendMessage(chatId, "❌ REPLY FILE HTML YANG MAU DI ENC");
-  }
-
-  try {
-    const fileId = msg.reply_to_message.document.file_id;
-    const fileInfo = await bot.getFile(fileId);
-    const fileUrl = `https://api.telegram.org/file/bot${TOKEN}/${fileInfo.file_path}`;
-
-    const response = await axios.get(fileUrl, { responseType: "arraybuffer" });
-    const htmlContent = Buffer.from(response.data).toString("utf8");
-
-    const encoded = Buffer.from(htmlContent, "utf8").toString("base64");
-    const encryptedHTML = `<!DOCTYPE html>
-<html>
-<head>
-<meta charset="utf-8" />
-<title>HOREG TEAM</title>
-<script>
-(function(){
-  try { document.write(atob("${encoded}")); }
-  catch(e){ console.error(e); }
-})();
-</script>
-</head>
-<body></body>
-</html>`;
-
-    const outputPath = path.join(__dirname, "encrypted.html");
-    fs.writeFileSync(outputPath, encryptedHTML, "utf-8");
-
-    await bot.sendDocument(chatId, outputPath, {
-      caption: "✅ HTML FILE SUCCES DI ENC"
-    });
-
-    fs.unlinkSync(outputPath);
-  } catch (err) {
-    console.error(err);
-    bot.sendMessage(chatId, "❌ ERROR SAAT MEMPROSES");
+    await bot.sendMessage(chatId, "❌ ERROR");
   }
 });
 
@@ -316,55 +261,7 @@ bot.onText(/\/getcode (.+)/, async (msg, match) => {
     fs.unlinkSync(filePath);
   } catch (err) {
     console.error(err);
-    bot.sendMessage(chatId, "♥️🥹 ERROR SAAT MENGAMBIL CODE WEB");
-  }
-});
-
-// === /encrypthard (reply file .js) ===
-bot.onText(/\/encrypthard(?:@[\w_]+)?$/, async (msg) => {
-  const chatId = msg.chat.id;
-  const userId = msg.from?.id;
-
-  const premium = await isUserPremium(userId);
-  if (!premium) return sendJoinButton(chatId);
-
-  if (!msg.reply_to_message || !msg.reply_to_message.document) {
-    return bot.sendMessage(chatId, "❌ Idiot gini /encrypthard reply file js 🤮");
-  }
-
-  try {
-    const fileId = msg.reply_to_message.document.file_id;
-    const fileLink = await bot.getFileLink(fileId);
-
-    const res = await axios.get(fileLink, { responseType: "text" });
-    const code = res.data;
-
-    const safeCode = addAntiError(code);
-    const obfuscated = JavaScriptObfuscator.obfuscate(safeCode, {
-      compact: true,
-      controlFlowFlattening: true,
-      controlFlowFlatteningThreshold: 0.75,
-      deadCodeInjection: true,
-      deadCodeInjectionThreshold: 0.4,
-      stringArray: true,
-      rotateStringArray: true,
-      stringArrayEncoding: ["base64"],
-      stringArrayThreshold: 0.75,
-      disableConsoleOutput: false,
-      selfDefending: false,
-    }).getObfuscatedCode();
-
-    const outPath = path.join(__dirname, "index.enc.js");
-    fs.writeFileSync(outPath, obfuscated, "utf-8");
-
-    await bot.sendDocument(chatId, outPath, {
-      caption: "✅ FILE INDEX JS SUDAH DI ENC 🥹",
-    });
-
-    fs.unlinkSync(outPath);
-  } catch (e) {
-    console.error(e.message);
-    bot.sendMessage(chatId, "🥹 KO ERROR");
+    bot.sendMessage(chatId, "❌ ERROR SAAT MENGAMBIL CODE WEB");
   }
 });
 
@@ -391,20 +288,4 @@ bot.on("polling_error", (err) => console.error("POLLING ERROR:", err?.message ||
 
 // === STARTUP ===
 loadGroups();
-console.log("\x1b[34m" + `
-⣠⣶⣿⣿⣶⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣀⣤⣄⡀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⣿⣿⣿⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⣾⣿⣿⣿⣿⡆⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠹⢿⣿⣿⡿⠃⠀⠀⠀⠀⠀⠀⠀⠀⠀⣿⣿⣿⣿⣿⡏⢀⣀⡀⠀⠀⠀⠀⠀
-⠀⠀⣠⣤⣦⡄⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠈⠛⠿⣟⣋⣼⣽⣾⣽⣦⡀⠀⠀⠀
-⢀⣼⣿⣷⣾⡽⡄⠀⠀⠀⠀⠀⠀⠀⣴⣶⣶⣿⣿⣿⡿⢿⣟⣽⣾⣿⣿⣦⠀⠀
-⣸⣿⣿⣾⣿⣿⣮⣤⣤⣤⣤⡀⠀⠀⠻⣿⡯⠽⠿⠛⠛⠉⠉⢿⣿⣿⣿⣿⣷⡀
-⣿⣿⢻⣿⣿⣿⣛⡿⠿⠟⠛⠁⣀⣠⣤⣤⣶⣶⣶⣶ⷶ⠀⠀⠻⣿⣿⣿⣿⣇
-⢻⣿⡆⢿⣿⣿⣿⣿⣤⣶⣾⣿⣿⣿⣿⣿⣿⠿⠟⠀⣠⣶⣿⣿⣿⣿⡟
-⠈⠛⠃⠈⢿⣿⣿⣿⣿⣿⣿⠿⠟⠛⠋⠉⠁⠀⠀⠀⠀⣠⣾⣿⣿⣿⠟⠋⠁
-⠀⠀⠀⠀⠀⠙⢿⣿⣿⡏⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⣴⣿⣿⣿⠟⠁⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⢸⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⣼⣿⣿⣿⠋⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⠁⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠸⣿⣿⠇⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⢸⣿⣿⣿⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-⠀⠀⠀⠀⠀⠀⣼⣿⣿⡇⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀⠀
-` + "\x1b[0m");
+console.log("\x1b[34m" + "Bot started!" + "\x1b[0m");
