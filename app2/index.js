@@ -6,7 +6,7 @@ const TelegramBot = require("node-telegram-bot-api");
 const JavaScriptObfuscator = require("javascript-obfuscator");
 const { exec } = require("child_process");
 
-const {
+/*const {
   TOKEN,
   CHANNEL_ID,
   OWNER_ID,
@@ -14,10 +14,10 @@ const {
   DEV_LINK,
   INFO_OWNER_LINK,
   PREMIUM_JOIN_LINK
-} = require("./config");
+} = require("./config");*/
 
 // === Init Bot ===
-const bot = new TelegramBot(TOKEN, { polling: true });
+const bot = new TelegramBot(process.env.TOKEN, { polling: true });
 
 // === Groups cache ===
 let groupsJoined = new Set();
@@ -50,7 +50,7 @@ function saveGroups() {
 // === Cek user premium (harus join channel) ===
 async function isUserPremium(userId) {
   try {
-    const member = await bot.getChatMember(CHANNEL_ID, userId);
+    const member = await bot.getChatMember(process.env.CHANNEL_ID, userId);
     return ["member", "administrator", "creator"].includes(member.status);
   } catch (e) {
     return false;
@@ -65,7 +65,7 @@ async function sendJoinButton(chatId) {
     {
       reply_markup: {
         inline_keyboard: [
-          [{ text: "📢 JOIN CHANNEL", url: PREMIUM_JOIN_LINK }],
+          [{ text: "📢 JOIN CHANNEL", url: process.env.PREMIUM_JOIN_LINK }],
           [{ text: "✅ SAYA SUDAH JOIN", callback_data: "check_join" }]
         ]
       }
@@ -108,8 +108,8 @@ bot.onText(/\/start/, async (msg) => {
   const caption = `<blockquote>
 ╭──( 𝗕𝗢𝗧 𝗝𝗔𝗦𝗛𝗘𝗥 )──╮
 │ ⋋──────────────⋌
-│   𝐇𝐄𝐋𝐋𝐎 𝐒𝐀𝐘𝐀 𝐁𝐎𝐓 
-     𝐉𝐀𝐒𝐇𝐄𝐑 𝐇𝐎𝐑𝐄𝐆
+│   HALO! AKU BOT 
+    JASHER TWINIGHTWHEEL
 │ ⋋──────────────⋌
 ╰──────────────────╯
 ╭──( 𝗦𝗧𝗔𝗧𝗨𝗦 𝗔𝗖𝗖𝗘𝗦 )──╮
@@ -123,11 +123,8 @@ bot.onText(/\/start/, async (msg) => {
 │    ╭▸ /share Reply Pesan
 │    ╰▸ /start Lihat Menu
 │    ╭▸ /getcode &lt;url&gt;
-│    ╰▸ /enchtml (reply html)
 │    ╭▸ /chatowner &lt;pesan&gt;
 │    ╰▸ /report @user 
-│    ╭▸ /encrypthard (replyjs)
-│    ╰▸ /berita Kontol Dpr
 │  ⋋──────────────⋌
 ╰───────────────────╯
 </blockquote>`;
@@ -141,11 +138,11 @@ bot.onText(/\/start/, async (msg) => {
       reply_markup: {
         inline_keyboard: [
           [
-            { text: "OWNER", url: OWNER_LINK },
-            { text: "DEVELOPER", url: DEV_LINK }
+            { text: "OWNER", url: process.env.OWNER_LINK },
+            { text: "DEVELOPER", url: process.env.DEV_LINK }
           ],
           [
-            { text: "INFO OWNER", url: INFO_OWNER_LINK }
+            { text: "INFO OWNER", url: process.env.INFO_OWNER_LINK }
           ]
         ]
       }
@@ -167,7 +164,7 @@ bot.onText(/\/share(?:@[\w_]+)?$/, async (msg) => {
 
   const target = msg.reply_to_message;
   let success = 0, failed = 0;
-  const statusMsg = await bot.sendMessage(chatId, `🔄 Proses ke ${groupsJoined.size} grup 🗿`);
+  const statusMsg = await bot.sendMessage(chatId, `🔄 Proses ke ${groupsJoined.size} grup`);
 
   for (const groupId of groupsJoined) {
     try {
