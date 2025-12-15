@@ -4,6 +4,7 @@ const axios = require("axios");
 const fetch = (...args) => import("node-fetch").then(({ default: f }) => f(...args));
 const TelegramBot = require("node-telegram-bot-api");
 const { exec } = require("child_process");
+require("dotenv").config();
 
 // === Init Bot ===
 const bot = new TelegramBot(process.env.TOKEN, { polling: true });
