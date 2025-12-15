@@ -3,7 +3,6 @@ import 'rootpath'
 import { spawn } from 'child_process'
 import fs from 'fs/promises'
 import path from 'path'
-import CFonts from 'cfonts'
 import { fileURLToPath } from 'url'
 import { Utils } from '@neoxr/wb'
 
@@ -78,17 +77,5 @@ if (major < 20) {
    process.exit(1)
 }
 
-CFonts.say('SAKURABOT', {
-   font: 'tiny',
-   align: 'center',
-   colors: ['system']
-})
-CFonts.say('Github: https://github.com/indra87g/sakurabot-kroco', {
-   colors: ['system'],
-   font: 'console',
-   align: 'center'
-})
-
 start()
-
 startAutoClean()
