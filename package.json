@@ -1,5 +1,5 @@
 {
-  "name": "pm2-root",
+  "name": "pm2-botjs",
   "private": true,
   "scripts": {
     "start": "pm2 start pm2.config.js --no-daemon"
