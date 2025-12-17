@@ -5,23 +5,26 @@ module.exports = {
       cwd: "./app1",
       script: "npm",
       args: "start",
-      interpreter: "none",
-      env_file: "./app1/.env"
+      interpreter: "none"
     },
     {
       name: "app2",
       cwd: "./app2",
       script: "npm",
       args: "start",
-      interpreter: "none",
-      env_file: "./app2/.env"
+      interpreter: "none"
+    },
+    {
+      name: "app3",
+      cwd: "./app3",
+      script: "index.js",
+      instances: 1
     },
     {
       name: "script1",
       script: "./script1.js",
       watch: false,
-      autorestart: false,
-      env_file: "./.env"
+      autorestart: false
     }
   ]
 };
