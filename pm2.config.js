@@ -15,12 +15,6 @@ module.exports = {
       interpreter: "none"
     },
     {
-      name: "app3",
-      cwd: "./app3",
-      script: "index.js",
-      instances: 1
-    },
-    {
       name: "script1",
       script: "./script1.js",
       watch: false,
