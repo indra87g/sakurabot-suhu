@@ -5,7 +5,7 @@ import path from 'path'
 import { fileURLToPath } from 'url'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const dbPath = path.join(__dirname, '..', 'data.db')
+export const dbPath = path.join(__dirname, '..', 'data.db')
 
 export async function initializeDatabase() {
   const db = await open({
@@ -21,8 +21,11 @@ export async function initializeDatabase() {
       limit_ INTEGER DEFAULT 15,
       money REAL DEFAULT 0,
       premium BOOLEAN DEFAULT FALSE,
+      expired INTEGER DEFAULT 0,
       banned BOOLEAN DEFAULT FALSE,
+      ban_times INTEGER DEFAULT 0,
       lastseen INTEGER,
+      usebot INTEGER,
       hit INTEGER DEFAULT 0,
       spam INTEGER DEFAULT 0,
       afk INTEGER DEFAULT -1,
@@ -62,7 +65,8 @@ export async function initializeDatabase() {
       debug BOOLEAN DEFAULT FALSE,
       groupmode BOOLEAN DEFAULT FALSE,
       self BOOLEAN DEFAULT FALSE,
-      link TEXT
+      link TEXT,
+      lastReset INTEGER
     );
   `)
 

@@ -26,7 +26,7 @@ export async function migrateData() {
 
   // Migrate users
   if (data.users && data.users.length > 0) {
-    const userStmt = await db.prepare('INSERT OR REPLACE INTO users (jid, lid, name, limit_, money, premium, banned, lastseen, hit, spam, afk, afkReason, afkObj) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
+    const userStmt = await db.prepare('INSERT OR REPLACE INTO users (jid, lid, name, limit_, money, premium, expired, banned, ban_times, lastseen, usebot, hit, spam, afk, afkReason, afkObj) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)')
     for (const user of data.users) {
       await userStmt.run(
         user.jid,
@@ -35,8 +35,11 @@ export async function migrateData() {
         user.limit,
         user.money || 0,
         user.premium || false,
+        user.expired || 0,
         user.banned || false,
+        user.ban_times || 0,
         user.lastseen,
+        user.usebot,
         user.hit,
         user.spam,
         user.afk,
@@ -83,7 +86,7 @@ export async function migrateData() {
   if (data.setting) {
     const settings = data.setting
     await db.run(
-      `INSERT OR REPLACE INTO settings (key, autobackup, online, multiprefix, noprefix, onlyprefix, prefix, owners, pluginDisable, error, paidc, toxic, antispam, debug, groupmode, self, link) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+      `INSERT OR REPLACE INTO settings (key, autobackup, online, multiprefix, noprefix, onlyprefix, prefix, owners, pluginDisable, error, paidc, toxic, antispam, debug, groupmode, self, link, lastReset) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
       'default',
       settings.autobackup || false,
       settings.online !== false,
@@ -100,7 +103,8 @@ export async function migrateData() {
       settings.debug || false,
       settings.groupmode || false,
       settings.self || false,
-      settings.link
+      settings.link,
+      settings.lastReset
     )
     console.log('Migrated settings.')
   }

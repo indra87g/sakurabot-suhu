@@ -4,8 +4,9 @@ import './lib/proto.js'
 import './error.js'
 import './lib/config.js'
 import './lib/functions.js'
-import { initializeDatabase } from './lib/schema.js'
+import { initializeDatabase, dbPath } from './lib/schema.js'
 import { migrateData } from './lib/migration.js'
+import { createDbProxy } from './lib/db-proxy.js'
 import bytes from 'bytes'
 import fs from 'node:fs'
 import colors from 'colors'
@@ -20,9 +21,14 @@ const system = {
 const connect = async () => {
    try {
       // Initialize and migrate database
-      await migrateData()
-      const db = await initializeDatabase()
-      global.db = db
+      try {
+         const db = await initializeDatabase()
+         global.db = db
+         await migrateData()
+      } catch (e) {
+         console.error('Fatal error connecting to database, exiting...', e)
+         process.exit(1)
+      }
 
       const client = new Client({
          plugsdir: 'plugins',
@@ -57,6 +63,14 @@ const connect = async () => {
                await db.run('INSERT INTO settings (key) VALUES (?)', 'default')
                settings = await db.get('SELECT * FROM settings WHERE key = ?', 'default')
             }
+            // Parse settings from JSON string to object once
+            if (settings) {
+               settings.owners = JSON.parse(settings.owners || '[]')
+               settings.pluginDisable = JSON.parse(settings.pluginDisable || '[]')
+               settings.error = JSON.parse(settings.error || '[]')
+               settings.paidc = JSON.parse(settings.paidc || '{}')
+               settings.toxic = JSON.parse(settings.toxic || '[]')
+            }
             global.setting = settings
          } catch (e) {
             Utils.printError(e)
@@ -80,7 +94,6 @@ const connect = async () => {
 
          cron.schedule('0 12 * * *', async () => {
             if (global.setting.autobackup) {
-               const dbPath = './app1/data.db'
                if (fs.existsSync(dbPath)) {
                   await client.sock.sendFile(Config.owner + '@s.whatsapp.net', fs.readFileSync(dbPath), 'data.db', '', null)
                }
