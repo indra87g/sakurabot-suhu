@@ -3,16 +3,21 @@ import fs from 'fs'
 import { parse } from 'flatted'
 import sqlite3 from 'sqlite3'
 import { open } from 'sqlite'
+import path from 'path'
+import { fileURLToPath } from 'url'
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url))
+const dbPath = path.join(__dirname, '..', 'data.db')
+const jsonPath = path.join(__dirname, '..', 'data.json')
 
 export async function migrateData() {
-  const jsonPath = './app1/data.json'
   if (!fs.existsSync(jsonPath)) {
     console.log('data.json not found, skipping migration.')
     return
   }
 
   const db = await open({
-    filename: './app1/data.db',
+    filename: dbPath,
     driver: sqlite3.Database
   })
 

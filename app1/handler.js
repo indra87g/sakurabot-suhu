@@ -25,8 +25,8 @@ export default async (client, ctx) => {
          users = await global.db.get('SELECT * FROM users WHERE jid = ?', m.sender)
       }
 
-      let chats = m.isGroup ? await global.db.get('SELECT * FROM chats WHERE jid = ?', m.chat) : null
-      if (m.isGroup && !chats) {
+      let chats = await global.db.get('SELECT * FROM chats WHERE jid = ?', m.chat)
+      if (!chats) {
          await global.db.run('INSERT INTO chats (jid) VALUES (?)', m.chat)
          chats = await global.db.get('SELECT * FROM chats WHERE jid = ?', m.chat)
       }
