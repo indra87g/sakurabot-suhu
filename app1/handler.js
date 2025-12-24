@@ -9,7 +9,6 @@ const spam = new Spam({
    NOTIFY_THRESHOLD: Config.notify_threshold,
    BANNED_THRESHOLD: Config.banned_threshold
 })
-import schema from './lib/schema.js'
 
 export default async (client, ctx) => {
    let { store, m, body, prefix, plugins, commands, args, command, text, prefixes, core, system } = ctx
@@ -20,27 +19,42 @@ export default async (client, ctx) => {
          client.fetchBlocklist().catch(() => [])
       ])
 
-      schema(m, Config)
+      let users = await global.db.get('SELECT * FROM users WHERE jid = ?', m.sender)
+      if (!users) {
+         await global.db.run('INSERT INTO users (jid, lid) VALUES (?, ?)', m.sender, m.sender.endsWith('lid') ? m.sender : null)
+         users = await global.db.get('SELECT * FROM users WHERE jid = ?', m.sender)
+      }
 
-      let groupSet = global.db.groups.find(v => v.jid === m.chat)
-      let chats = global.db.chats.find(v => v.jid === m.chat)
-      let users = global.db.users.find(v => v.jid === m.sender)
-      let setting = global.db.setting
+      let chats = m.isGroup ? await global.db.get('SELECT * FROM chats WHERE jid = ?', m.chat) : null
+      if (m.isGroup && !chats) {
+         await global.db.run('INSERT INTO chats (jid) VALUES (?)', m.chat)
+         chats = await global.db.get('SELECT * FROM chats WHERE jid = ?', m.chat)
+      }
+
+      let groupSet = m.isGroup ? await global.db.get('SELECT * FROM groups WHERE jid = ?', m.chat) : {}
+      if (m.isGroup && !groupSet) {
+          await global.db.run('INSERT INTO groups (jid, member) VALUES (?, ?)', m.chat, '{}');
+          groupSet = await global.db.get('SELECT * FROM groups WHERE jid = ?', m.chat);
+      }
+
+      let setting = global.setting
+      if (setting) {
+         setting.owners = JSON.parse(setting.owners || '[]')
+         setting.pluginDisable = JSON.parse(setting.pluginDisable || '[]')
+         setting.error = JSON.parse(setting.error || '[]')
+         setting.paidc = JSON.parse(setting.paidc || '{}')
+         setting.toxic = JSON.parse(setting.toxic || '[]')
+      } else {
+         // Fallback if global.setting is not loaded
+         setting = { owners: [], pluginDisable: [], error: [], paidc: {}, toxic: [] }
+      }
+
       let isOwner = [client.decodeJid(client.user.id).replace(/@.+/, ''), Config.owner, ...setting.owners].map(v => v + '@s.whatsapp.net').includes(m.sender)
       let isPrem = users && users.premium || isOwner
       let participants = m.isGroup ? groupMetadata ? client.lidParser(groupMetadata.participants) : [] : [] || []
       const admins = m.isGroup ? client.getAdmin(participants) : []
       const isAdmin = m.isGroup ? admins.includes(m.sender) : false
       const isBotAdmin = m.isGroup ? admins.includes((client.user.id.split`:`[0]) + '@s.whatsapp.net') : false
-
-      if (!users || typeof users.limit === undefined) return global.db.users.push({
-         jid: m.sender,
-         lid: m.sender?.endsWith('lid') ? m.sender : null,
-         banned: false,
-         limit: Config.limit,
-         hit: 0,
-         spam: 0
-      })
 
       const isSpam = spam.detection(client, m, {
          prefix, command, commands, users, cooldown,
@@ -56,57 +70,44 @@ export default async (client, ctx) => {
          client.sendPresenceUpdate('available', m.chat)
          client.readMessages([m.key])
       }
-      if (m.isGroup && !isBotAdmin) {
-         groupSet.localonly = false
+      if (m.isGroup && !isBotAdmin && groupSet) {
+         await global.db.run('UPDATE groups SET localonly = ? WHERE jid = ?', false, m.chat)
       }
-      if (!setting.multiprefix) setting.noprefix = false
+      if (!setting.multiprefix) await global.db.run('UPDATE settings SET noprefix = ? WHERE key = ?', false, 'default')
       if (setting.debug && !m.fromMe && isOwner) client.reply(m.chat, Utils.jsonFormat(m), m)
 
-      if (m.isGroup) groupSet.activity = new Date() * 1
+      if (m.isGroup) await global.db.run('UPDATE groups SET activity = ? WHERE jid = ?', new Date() * 1, m.chat)
       if (users) {
          if (!users.lid) {
             const { lid } = await client.getUserId(m.sender)
-            if (lid) users.lid = lid
+            if (lid) await global.db.run('UPDATE users SET lid = ? WHERE jid = ?', lid, m.sender)
          }
-         users.name = m.pushName
-         users.lastseen = new Date() * 1
+         await global.db.run('UPDATE users SET name = ?, lastseen = ? WHERE jid = ?', m.pushName, new Date() * 1, m.sender)
       }
-      const validLids = new Set(global.db.users.map(item => item.lid).filter(lid => lid !== null))
-      global.db.users = global.db.users.filter(item => {
-         if (item.lid !== null) return true
-         return !validLids.has(item.jid)
-      })
+
       if (chats) {
-         chats.chat += 1
-         chats.lastseen = new Date * 1
+         await global.db.run('UPDATE chats SET chat = chat + 1, lastseen = ? WHERE jid = ?', new Date() * 1, m.chat)
       }
+
       if (m.isGroup && !m.isBot && users && users.afk > -1) {
          client.reply(m.chat, `You are back online after being offline for : ${Utils.texted('bold', Utils.toTime(new Date - users.afk))}\n\n• ${Utils.texted('bold', 'Reason')}: ${users.afkReason ? users.afkReason : '-'}`, m)
-         users.afk = -1
-         users.afkReason = ''
-         users.afkObj = {}
+         await global.db.run('UPDATE users SET afk = ?, afkReason = ?, afkObj = ? WHERE jid = ?', -1, '', '{}', m.sender)
       }
-      cron.schedule('00 00 * * *', () => {
-         setting.lastReset = new Date * 1
-         global.db.users.filter(v => v.limit < Config.limit && !v.premium).map(v => v.limit = Config.limit)
-         Object.entries(global.db.statistic).map(([_, prop]) => prop.today = 0)
-      }, {
-         scheduled: true,
-         timezone: process.env.TZ
-      })
-      if (m.isGroup && !m.fromMe) {
+
+      if (m.isGroup && !m.fromMe && groupSet) {
+         let member = JSON.parse(groupSet.member || '{}')
          let now = new Date() * 1
-         if (!groupSet.member[m.sender]) {
-            groupSet.member[m.sender] = {
+         if (!member[m.sender]) {
+            member[m.sender] = {
                lastseen: now,
                warning: 0
             }
          } else {
-            groupSet.member[m.sender].lastseen = now
+            member[m.sender].lastseen = now
          }
+         await global.db.run('UPDATE groups SET member = ? WHERE jid = ?', JSON.stringify(member), m.chat)
       }
-      // if (setting.antispam && isSpam && /(BANNED|NOTIFY|TEMPORARY)/.test(isSpam.state)) return client.reply(m.chat, Utils.texted('bold', `🚩 ${isSpam.msg}`), m)
-      // if (setting.antispam && isSpam && /HOLD/.test(isSpam.state)) return
+
       if (body && !setting.self && core.prefix != setting.onlyprefix && commands.includes(core.command) && !setting.multiprefix && !Config.evaluate_chars.includes(core.command)) return client.reply(m.chat, `🚩 *Incorrect prefix!*, this bot uses prefix : *[ ${setting.onlyprefix} ]*\n\n➠ ${setting.onlyprefix + core.command} ${text || ''}`, m)
       const matcher = Utils.matcher(command, commands).filter(v => v.accuracy >= 60)
       if (prefix && !commands.includes(command) && matcher.length > 0 && !setting.self) {
@@ -114,7 +115,7 @@ export default async (client, ctx) => {
       }
 
       if (
-         body && prefix && commands.includes(command) && setting.multiprefix && setting.prefix.includes(prefix) ||
+         body && prefix && commands.includes(command) && setting.multiprefix && (setting.prefix || '.').includes(prefix) ||
          body && !prefix && commands.includes(command) && setting.noprefix ||
          body && prefix && commands.includes(command) && !setting.multiprefix && setting.onlyprefix === prefix ||
          body && !prefix && commands.includes(command) && Config.evaluate_chars.includes(command)
@@ -122,8 +123,7 @@ export default async (client, ctx) => {
          if (setting.error.includes(command)) return client.reply(m.chat, Utils.texted('bold', `🚩 Command _${(prefix ? prefix : '') + command}_ disabled.`), m)
          if (!m.isGroup && Config.blocks.some(no => m.sender?.startsWith(no))) return client.updateBlockStatus(m.sender, 'block')
          if (commands.includes(command)) {
-            users.hit += 1
-            users.usebot = new Date() * 1
+            await global.db.run('UPDATE users SET hit = hit + 1, usebot = ? WHERE jid = ?', new Date() * 1, m.sender)
             Utils.hitstat(command, m.sender)
          }
          const is_commands = Object.fromEntries(Object.entries(plugins).filter(([name, prop]) => prop.run.usage))
@@ -141,7 +141,7 @@ export default async (client, ctx) => {
                   largeThumb: true,
                   thumbnail: 'https://telegra.ph/file/0b32e0a0bb3b81fef9838.jpg',
                   url: setting.link
-               }).then(() => chats.lastchat = new Date() * 1)
+               }).then(async () => await global.db.run('UPDATE chats SET lastchat = ? WHERE jid = ?', new Date() * 1, m.chat))
                continue
             }
             if (!['me', 'owner', 'exec'].includes(name) && users && (users.banned || new Date - users.ban_temporary < Config.timeout)) continue
@@ -152,15 +152,15 @@ export default async (client, ctx) => {
                   client.reply(m.chat, `You don't have enough money to use this command. You need ${Utils.formatNumber(price)}.`, m)
                   continue
                }
-               users.money -= price
+               await global.db.run('UPDATE users SET money = money - ? WHERE jid = ?', price, m.sender)
             }
             if (cmd.owner && !isOwner) {
                client.reply(m.chat, global.status.owner, m)
                continue
             }
             if (cmd.restrict && !isPrem && !isOwner && text && new RegExp('\\b' + setting.toxic.join('\\b|\\b') + '\\b').test(text.toLowerCase())) {
-               client.reply(m.chat, `⚠️ You violated the *Terms & Conditions* of using bots by using blacklisted keywords, as a penalty for your violation being blocked and banned.`, m).then(() => {
-                  users.banned = true
+               client.reply(m.chat, `⚠️ You violated the *Terms & Conditions* of using bots by using blacklisted keywords, as a penalty for your violation being blocked and banned.`, m).then(async () => {
+                  await global.db.run('UPDATE users SET banned = ? WHERE jid = ?', true, m.sender)
                   client.updateBlockStatus(m.sender, 'block')
                })
                continue
@@ -174,14 +174,14 @@ export default async (client, ctx) => {
                client.reply(m.chat, global.status.premium, m)
                continue
             }
-            if (cmd.limit && users.limit < 1) {
-               client.reply(m.chat, `⚠️ You reached the limit and will be reset at 00.00\n\nTo get more limits upgrade to premium plans.`, m).then(() => users.premium = false)
+            if (cmd.limit && users.limit_ < 1) {
+               client.reply(m.chat, `⚠️ You reached the limit and will be reset at 00.00\n\nTo get more limits upgrade to premium plans.`, m).then(async () => await global.db.run('UPDATE users SET premium = ? WHERE jid = ?', false, m.sender))
                continue
             }
-            if (cmd.limit && users.limit > 0) {
+            if (cmd.limit && users.limit_ > 0) {
                const limit = cmd.limit.constructor.name == 'Boolean' ? 1 : cmd.limit
-               if (users.limit >= limit) {
-                  users.limit -= limit
+               if (users.limit_ >= limit) {
+                  await global.db.run('UPDATE users SET limit_ = limit_ - ? WHERE jid = ?', limit, m.sender)
                } else {
                   client.reply(m.chat, Utils.texted('bold', `⚠️ Your limit is not enough to use this feature.`), m)
                   continue
@@ -219,13 +219,12 @@ export default async (client, ctx) => {
                largeThumb: true,
                thumbnail: await Utils.fetchAsBuffer('https://telegra.ph/file/0b32e0a0bb3b81fef9838.jpg'),
                url: setting.link
-            }).then(() => chats.lastchat = new Date() * 1)
+            }).then(async () => await global.db.run('UPDATE chats SET lastchat = ? WHERE jid = ?', new Date() * 1, m.chat))
             if (event.error) continue
             if (event.owner && !isOwner) continue
             if (event.group && !m.isGroup) continue
-            if (event.limit && !event.game && users.limit < 1 && body && Utils.generateLink(body) && Utils.generateLink(body).some(v => Utils.socmed(v))) return client.reply(m.chat, `⚠️ You reached the limit and will be reset at 00.00\n\nTo get more limits upgrade to premium plan.`, m).then(() => {
-               users.premium = false
-               users.expired = 0
+            if (event.limit && !event.game && users.limit_ < 1 && body && Utils.generateLink(body) && Utils.generateLink(body).some(v => Utils.socmed(v))) return client.reply(m.chat, `⚠️ You reached the limit and will be reset at 00.00\n\nTo get more limits upgrade to premium plan.`, m).then(async () => {
+               await global.db.run('UPDATE users SET premium = ?, expired = ? WHERE jid = ?', false, 0, m.sender)
             })
             if (event.botAdmin && !isBotAdmin) continue
             if (event.admin && !isAdmin) continue

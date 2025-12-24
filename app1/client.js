@@ -1,24 +1,29 @@
-import { Client, Config, Database, Utils } from '@neoxr/wb'
+import { Client, Config, Utils } from '@neoxr/wb'
 import baileys from './lib/engine.js'
 import './lib/proto.js'
 import './error.js'
 import './lib/config.js'
 import './lib/functions.js'
+import { initializeDatabase } from './lib/schema.js'
+import { migrateData } from './lib/migration.js'
 import bytes from 'bytes'
 import fs from 'node:fs'
 import colors from 'colors'
 import cron from 'node-cron'
 import extra from './lib/listeners-extra.js'
-import { stringify } from 'flatted'
 
 const system = {
-   database: await (Database.saveToLocal(Config.database)),
    session: 'local',
    name: 'Local'
 }
 
 const connect = async () => {
    try {
+      // Initialize and migrate database
+      await migrateData()
+      const db = await initializeDatabase()
+      global.db = db
+
       const client = new Client({
          plugsdir: 'plugins',
          online: true,
@@ -47,14 +52,12 @@ const connect = async () => {
 
       client.once('connect', async res => {
          try {
-            const defaults = { users: [], chats: [], groups: [], statistic: {}, sticker: {}, setting: {}, ...(await system.database.fetch() || {}) }
-            const previous = await system.database.fetch()
-            if (!previous || typeof previous !== 'object' || !Object.keys(previous).length) {
-               global.db = defaults
-               await system.database.save(defaults)
-            } else {
-               global.db = previous
+            let settings = await db.get('SELECT * FROM settings WHERE key = ?', 'default')
+            if (!settings) {
+               await db.run('INSERT INTO settings (key) VALUES (?)', 'default')
+               settings = await db.get('SELECT * FROM settings WHERE key = ?', 'default')
             }
+            global.setting = settings
          } catch (e) {
             Utils.printError(e)
          }
@@ -75,16 +78,21 @@ const connect = async () => {
             }
          }, 60 * 1000)
 
-         setInterval(async () => {
-            if (global.db) await system.database.save(global.db)
-         }, 60 * 1000 * (['local', 'sqlite'].includes(system.session) ? 3 : 5))
-
          cron.schedule('0 12 * * *', async () => {
-            if (global?.db?.setting?.autobackup) {
-               await system.database.save(global.db)
-               fs.writeFileSync(Config.database + '.json', stringify(global.db), 'utf-8')
-               await client.sock.sendFile(Config.owner + '@s.whatsapp.net', fs.readFileSync('./' + Config.database + '.json'), Config.database + '.json', '', null)
+            if (global.setting.autobackup) {
+               const dbPath = './app1/data.db'
+               if (fs.existsSync(dbPath)) {
+                  await client.sock.sendFile(Config.owner + '@s.whatsapp.net', fs.readFileSync(dbPath), 'data.db', '', null)
+               }
             }
+         })
+
+         cron.schedule('00 00 * * *', async () => {
+            await global.db.run('UPDATE settings SET lastReset = ? WHERE key = ?', new Date() * 1, 'default')
+            await global.db.run('UPDATE users SET limit_ = ? WHERE premium = ? AND limit_ < ?', Config.limit, false, Config.limit)
+         }, {
+            scheduled: true,
+            timezone: process.env.TZ
          })
 
          extra(system, client)
